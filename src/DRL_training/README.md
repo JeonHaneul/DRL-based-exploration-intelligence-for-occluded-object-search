@@ -8,22 +8,22 @@
 
 | 파일 | 역할 |
 | --- | --- |
-| `mask_generation_ver3.py` | 다양한 객체가 배치된 선반 장면을 생성하고 RGB, depth, segmentation 및 scene mask 데이터를 저장합니다. |
-| `ground_truth_generator.py` | 타깃 객체가 선반에 위치할 수 있는 영역과 자세를 순회하며 ground-truth용 target scene 데이터를 생성합니다. |
-| `distribution_map.py` | scene/target depth와 similarity mask를 처리하고 결합하여 최종 학습 데이터인 distribution map을 생성합니다. |
+| `Scene_generator.py` | 다양한 객체가 배치된 선반 장면을 생성하고 RGB, depth, segmentation 및 scene mask 데이터를 저장합니다. |
+| `Target_scene_gnerator.py` | 타깃 객체가 선반에 위치할 수 있는 영역과 자세를 순회하며 ground-truth용 target scene 데이터를 생성합니다. |
+| `Final_distribution_map_generator.py` | scene/target depth와 similarity mask를 처리하고 결합하여 최종 학습 데이터인 distribution map을 생성합니다. |
 
 ### 생성 순서
 
-1. `mask_generation_ver3.py`로 학습용 선반 장면과 mask를 생성합니다.
-2. `ground_truth_generator.py`로 타깃 객체의 배치 가능 영역에 대한 ground truth를 생성합니다.
-3. `distribution_map.py`로 두 결과를 결합해 최종 distribution map을 생성합니다.
+1. `Scene_generator.py`로 학습용 선반 장면과 mask를 생성합니다.
+2. `Target_scene_gnerator.py`로 타깃 객체의 배치 가능 영역에 대한 ground truth를 생성합니다.
+3. `Final_distribution_map_generator.py`로 두 결과를 결합해 최종 distribution map을 생성합니다.
 
 ### 실행 예시
 
 ```bash
-./isaaclab.sh -p source/standalone/shelf_env/mask_generation_ver3.py --target_object can_2 --enable_camera --save --num_img 100
-./isaaclab.sh -p source/standalone/shelf_env/ground_truth_generator.py --target_object can_3 --enable_camera --save --row 4
-./isaaclab.sh -p source/standalone/shelf_env/distribution_map.py --target_object can_2 --save
+./isaaclab.sh -p source/standalone/shelf_env/Scene_generator.py --target_object can_2 --enable_camera --save --num_img 100
+./isaaclab.sh -p source/standalone/shelf_env/Target_scene_gnerator.py --target_object can_3 --enable_camera --save --row 4
+./isaaclab.sh -p source/standalone/shelf_env/Final_distribution_map_generator.py --target_object can_2 --save
 ```
 
 > 실행 전 각 스크립트의 Isaac Lab 경로, Omniverse USD asset 경로, 출력 폴더를 현재 환경에 맞게 설정해야 합니다.
