@@ -1,4 +1,4 @@
-## 사용 방법
+## Usage
 ## ./isaaclab.sh -p source/standalone/shelf_env/ground_truth_generator.py --target_object can_3 --enable_camera --save --row 4
 
 # Copyright (c) 2022-2024, The Isaac Lab Project Developers.
@@ -88,7 +88,7 @@ from omni.isaac.lab.sensors.camera import Camera, CameraCfg
 from omni.isaac.lab.sensors.camera.utils import create_pointcloud_from_depth
 from omni.isaac.lab.utils import convert_dict_to_backend, math
 
-# 원래 버전용
+# ?��?�� 버전?��
 # usd_path_mapping = {
 #     "cup_1": "omniverse://localhost/Library/Shelf/Object/Cup_1.usd",
 #     "cup_2": "omniverse://localhost/Library/Shelf/Object/Cup_2.usd",
@@ -112,20 +112,40 @@ from omni.isaac.lab.utils import convert_dict_to_backend, math
 #     "can_5": "omniverse://localhost/Library/Shelf/Object/Can_5.usd",
 # }
 
-# 실증용
+# # ?��증용 4x3
+# usd_path_mapping = {
+#     "cup_1": "omniverse://localhost/Library/Shelf/Object/Cup_1.usd",
+#     "cup_2": "omniverse://localhost/Library/Shelf/Object/Cup_2.usd",
+#     "cup_3": "omniverse://localhost/Library/Shelf/Object/Cup_4.usd",
+#     "mug_1": "omniverse://localhost/Library/Shelf/Object/Mug_2.usd",
+#     "mug_2": "omniverse://localhost/Library/Shelf/Object/Mug_3.usd",
+#     "mug_3": "omniverse://localhost/Library/Shelf/Object/Mug_4.usd",
+#     "bottle_1": "omniverse://localhost/Library/Shelf/Object/Bottle_6.usd",
+#     "bottle_2": "omniverse://localhost/Library/Shelf/Object/Bottle_7.usd",
+#     "bottle_3": "omniverse://localhost/Library/Shelf/Object/Bottle_8.usd",
+#     "can_1": "omniverse://localhost/Library/Shelf/Object/Can_6.usd",
+#     "can_2": "omniverse://localhost/Library/Shelf/Object/Can_7.usd",
+#     "can_3": "omniverse://localhost/Library/Shelf/Object/Can_8.usd",
+# }
+
+# ?��증용 5x4
 usd_path_mapping = {
-    "cup_1": "omniverse://localhost/Library/Shelf/Object/Cup_1.usd",
-    "cup_2": "omniverse://localhost/Library/Shelf/Object/Cup_2.usd",
-    "cup_3": "omniverse://localhost/Library/Shelf/Object/Cup_4.usd",
-    "mug_1": "omniverse://localhost/Library/Shelf/Object/Mug_2.usd",
-    "mug_2": "omniverse://localhost/Library/Shelf/Object/Mug_3.usd",
-    "mug_3": "omniverse://localhost/Library/Shelf/Object/Mug_4.usd",
+    "cup_1": "omniverse://localhost/Library/Shelf/Object/Cup_1_9.usd",
+    "cup_2": "omniverse://localhost/Library/Shelf/Object/Cup_2_9.usd",
+    "cup_3": "omniverse://localhost/Library/Shelf/Object/Cup_4_9.usd",
+    "cup_4": "omniverse://localhost/Library/Shelf/Object/Cup_5_9.usd",
+    "mug_1": "omniverse://localhost/Library/Shelf/Object/Mug_2_9.usd",
+    "mug_2": "omniverse://localhost/Library/Shelf/Object/Mug_3_9.usd",
+    "mug_3": "omniverse://localhost/Library/Shelf/Object/Mug_4_9.usd",
+    "mug_4": "omniverse://localhost/Library/Shelf/Object/Mug_5_9.usd",
     "bottle_1": "omniverse://localhost/Library/Shelf/Object/Bottle_6.usd",
     "bottle_2": "omniverse://localhost/Library/Shelf/Object/Bottle_7.usd",
     "bottle_3": "omniverse://localhost/Library/Shelf/Object/Bottle_8.usd",
+    "bottle_4": "omniverse://localhost/Library/Shelf/Object/Bottle_9.usd",
     "can_1": "omniverse://localhost/Library/Shelf/Object/Can_6.usd",
-    "can_2": "omniverse://localhost/Library/Shelf/Object/Can_7.usd",
+    "can_2": "omniverse://localhost/Library/Shelf/Object/Can_10.usd",
     "can_3": "omniverse://localhost/Library/Shelf/Object/Can_8.usd",
+    "can_4": "omniverse://localhost/Library/Shelf/Object/Can_9.usd",
 }
 
 
@@ -201,8 +221,8 @@ def design_scene() -> dict:
     rack = RigidObject(cfg=rack_cfg)
 
     prim_utils.create_prim(
-        "/World/Objects", "Xform", translation=(-0.12, -0.40, 1.05)
-    )  # 원래 버전 (-0.24, -0.38, 0.66) / 5x3 실증용 (-0.12, -0.40, 0.66) / 4x3 실증용 (-0.12, -0.40, 0.66)
+        "/World/Objects", "Xform", translation=(-0.16, -0.40, 1.05)
+    )  # ?��?�� 버전 (-0.24, -0.38, 0.66) / 5x3 ?��증용 (-0.12, -0.40, 0.66) / 4x3 ?��증용 (-0.12, -0.40, 1.05) / 5x4 ?��증용 (-0.16, -0.40, 1.05)
 
     scene_entities = object_spawn(scene_entities=scene_entities)
     # Sensors
@@ -261,10 +281,10 @@ def scene_update(
     state_w[0:3] = scene_entities["target_pos"]
     state_w[3:7] = quat_w
     if (scene_count % 8) == 0:
-        if state_w[1] < 0.80:  # 원래 0.76 / 5x3 실증용 0.80 / 4x3 실증용 0.80
+        if state_w[1] < 0.80:  # ?��?�� 0.76 / 5x3 ?��증용 0.80 / 4x3 ?��증용 0.80 / 5x4 ?��증용 0.80
             state_w[1] = state_w[1] + 0.01
-        elif state_w[1] >= 0.80:  # 원래 0.76 / 5x3 실증용 0.80 / 4x3 실증용 0.80
-            state_w[0] = state_w[0] + 0.065  # 원래 0.12 / 5x3 실증용 0.06 / 4x3 실증용 0.065
+        elif state_w[1] >= 0.80:  # ?��?�� 0.76 / 5x3 ?��증용 0.80 / 4x3 ?��증용 0.80 / 5x4 ?��증용 0.80
+            state_w[0] = state_w[0] + 0.1  # ?��?�� 0.12 / 5x3 ?��증용 0.06 / 4x3 ?��증용 0.065 / 5x4 ?��증용 0.1
             state_w[1] = 0.0
 
     for key in list(scene_entities.keys()):
@@ -275,7 +295,7 @@ def scene_update(
     new_entities = object_spawn(scene_entities, pos=state_w[0:3], ori=state_w[3:7])
     scene_entities.update(new_entities)
 
-    if (scene_count > 100) & (state_w[0] == 0.065 * args_cli.row):  # 원래 0.12 / 5x3 실증용 0.06 / 4x3 실증용 0.065
+    if (scene_count > 100) & (state_w[0] == 0.1 * args_cli.row):  # ?��?�� 0.12 / 5x3 ?��증용 0.06 / 4x3 ?��증용 0.065 / 5x4 ?��증용 0.1
         raise RuntimeError
 
 
@@ -396,3 +416,4 @@ if __name__ == "__main__":
     main()
     # close sim app
     simulation_app.close()
+
