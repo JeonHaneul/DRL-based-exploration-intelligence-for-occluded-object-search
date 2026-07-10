@@ -1,5 +1,5 @@
-## 사용 방법
-## ./isaaclab.sh -p source/standalone/shelf_env/test.py --target_object can_2 --save
+## Usage
+## ./isaaclab.sh -p source/standalone/shelf_env/distribution_map.py --target_object can_2 --save
 
 import os
 import numpy as np
@@ -91,7 +91,7 @@ def combine_all_images(folder_path: str, obj_type: str, sigma=5):
         
 
 
-def create_depth_distribution_map(folder_path: str, visualization: bool, save: bool, occlusion_threshold=0.3):
+def create_depth_distribution_map(folder_path: str, visualization: bool, save: bool, occlusion_threshold=0.25):
     """
     Create a depth distribution map by comparing the depth of each pixel in the target image with the corresponding pixel
     in the scene image. A smaller depth value in the scene indicates that the object is closer to the camera.
@@ -226,18 +226,18 @@ def create_depth_distribution_map(folder_path: str, visualization: bool, save: b
     print("Depth distribution map creation complete.")
     
 def target_semantic(similarity_file):
-    # [255, 255, 255]인 영역 찾기 (흰색)
+    # [255, 255, 255]?�� ?��?�� 찾기 (?��?��)
     mask = np.all(similarity_file == [255, 255, 255], axis=-1)
 
-    # 흰색 영역이 하나라도 있으면 마스킹 적용
+    # ?��?�� ?��?��?�� ?��?��?��?�� ?��?���? 마스?�� ?��?��
     if np.any(mask):
-        # 모든 픽셀을 검은색(0,0,0)으로 만들기
+        # 모든 ?��????�� �?????��(0,0,0)?���? 만들�?
         output_image = np.zeros_like(similarity_file)
 
-        # 흰색(255,255,255) 영역만 유지
+        # ?��?��(255,255,255) ?��?���? ?���?
         output_image[mask] = [255, 255, 255]
     else:
-        # 흰색 영역이 없다면 원본 유지
+        # ?��?�� ?��?��?�� ?��?���? ?���? ?���?
         output_image = similarity_file
 
     return output_image
@@ -245,59 +245,71 @@ def target_semantic(similarity_file):
 
 def process_file(depth_file, similarity_file, output_file):
     """
-    단일 depth map과 similarity map을 결합하여 distribution map 생성 후 저장.
+    ?��?�� depth map�? similarity map?�� 결합?��?�� distribution map ?��?�� ?�� ????��.
 
     Args:
-        depth_file (str): depth map 파일 경로 (.npy).
-        similarity_file (str): similarity map 파일 경로 (.png).
-        output_file (str): 저장할 distribution map 파일 경로 (.png).
+        depth_file (str): depth map ?��?�� 경로 (.npy).
+        similarity_file (str): similarity map ?��?�� 경로 (.png).
+        output_file (str): ????��?�� distribution map ?��?�� 경로 (.png).
     """
     # depth map 로드
     depth_map = np.load(depth_file)
 
-    # depth map 정규화 (0~255)
+    # depth map ?��규화 (0~255)
     depth_map_norm = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
     # similarity map 로드
     similarity_map = cv2.imread(similarity_file, cv2.IMREAD_GRAYSCALE)
 
-    # [255, 255, 255]인 영역 찾기 (흰색)
+    # [255, 255, 255]?�� ?��?�� 찾기 (?��?��)
     mask = similarity_map == 255
 
-    # 흰색 영역이 하나라도 있으면 마스킹 적용
+    # ?��?�� ?��?��?�� ?��?��?��?�� ?��?���? 마스?�� ?��?��
     if np.any(mask):
-        # 모든 픽셀을 검은색(0,0,0)으로 만들기
-        output_image = np.zeros_like(similarity_map)
+        # # 모든 ?��????�� �?????��(0,0,0)?���? 만들�?
+        # # output_image = np.zeros_like(similarity_map)
+        # output_image = (similarity_map * 0.4).astype(np.uint8)
 
-        # 흰색(255,255,255) 영역만 유지
-        output_image[mask] = 255
+        # # ?��?��(255,255,255) ?��?���? ?���?
+        # output_image[mask] = 255
 
-        # 두 맵 결합 (50%씩 반영)
-        combined_map = cv2.addWeighted(depth_map_norm, 0.0, output_image, 1.0, 0)
-    else:
-        # 흰색 영역이 없다면 원본 유지
+        # # 255?�� 경우 target �? ????��
+        # combined_map = cv2.addWeighted(depth_map_norm, 0.0, output_image, 1.0, 0)
+        
+        
+        #ver.2
         output_image = similarity_map
 
-        # 두 맵 결합 (50%씩 반영)
-        combined_map = cv2.addWeighted(depth_map_norm, 0.5, output_image, 0.5, 0)
+        # 255?�� 경우 target �? ????��
+        combined_map = cv2.addWeighted(depth_map_norm, 0.2, output_image, 0.8, 0) # 0.2, 0.8 비율?�� 최종 ?��?�� / FCN�?증용 1,0, 0.0
+        combined_map = (combined_map * 0.8).astype(np.uint8) # 0.8?�� 최종 ?��?�� / FCN�?증용 0.9
+        combined_map[mask] = 255
+        
+        
+    else:
+        # ?��?�� ?��?��?�� ?��?���? ?���? ?���?
+        output_image = similarity_map
+
+        # ?�� �? 결합 (50%?�� 반영)
+        combined_map = cv2.addWeighted(depth_map_norm, 0.2, output_image, 0.8, 0) # 0.2, 0.8 비율?�� 최종 ?��?�� / FCN�?증용 1,0, 0.0
     
 
     
     
 
-    # 결과 저장
+    # 결과 ????��
     cv2.imwrite(output_file, combined_map)
 
 
 def process_all_maps(folder_path: str):
     """
-    모든 depth map과 similarity map을 순서에 맞게 처리하여 distribution map 생성.
+    모든 depth map�? similarity map?�� ?��?��?�� 맞게 처리?��?�� distribution map ?��?��.
 
     Args:
-        depth_folder (str): depth map 폴더 경로.
-        similarity_folder (str): similarity map 폴더 경로.
-        output_folder (str): 저장할 distribution map 폴더 경로.
-        num_files (int): 처리할 파일 수 (기본값: 1000).
+        depth_folder (str): depth map ?��?�� 경로.
+        similarity_folder (str): similarity map ?��?�� 경로.
+        output_folder (str): ????��?�� distribution map ?��?�� 경로.
+        num_files (int): 처리?�� ?��?�� ?�� (기본�?: 1000).
     """
     depth_distribution_path = os.path.join(folder_path, args_cli.target_object, "scene","depth_dis_map")
     similarity_map_path = os.path.join(folder_path, args_cli.target_object, "scene", "mask")
@@ -306,28 +318,28 @@ def process_all_maps(folder_path: str):
     depth_distribution_files = sorted([f for f in os.listdir(depth_distribution_path) if f.endswith(".npy")])
     similarity_map_files = sorted([f for f in os.listdir(similarity_map_path) if f.endswith(".png")])
     
-    # 출력 폴더 생성
+    # 출력 ?��?�� ?��?��
     os.makedirs(output_folder, exist_ok=True)
     
     if len(depth_distribution_files) != len(similarity_map_files):
         raise ValueError("Number of depth distribution map files and similarity map files do not match.")
 
     for i in range(1, len(depth_distribution_files)+1):
-        # 파일 이름 생성
+        # ?��?�� ?���? ?��?��
         depth_file = f"{depth_distribution_path}/01_{i}.npy"
         similarity_file = f"{similarity_map_path}/mask_{args_cli.target_object}_frame_{i}.png"
         output_file = f"{output_folder}/01_{i}.png"
 
-        # 파일 처리
+        # ?��?�� 처리
         process_file(depth_file, similarity_file, output_file)
 
-    print("Distribution map 생성 완료!")
+    print("Distribution map ?��?�� ?���?!")
 
 
 if __name__ == "__main__":
     args_cli = parser.parse_args()
-    # 이미지 폴더 경로
-    folder_path = ""
+    # ?��미�?? ?��?�� 경로
+    folder_path = "/home/haneul/IsaacLab/source/standalone/shelf_env/output/camera"
     combine_all_images(folder_path=folder_path, obj_type="target")
     combine_all_images(folder_path=folder_path, obj_type="scene")
     create_depth_distribution_map(folder_path=folder_path, visualization=False, save=args_cli.save)
