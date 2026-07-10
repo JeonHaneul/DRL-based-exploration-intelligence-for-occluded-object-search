@@ -1,0 +1,21 @@
+[submodule "src/DRL_training/IsaacLab"]
+	path = src/DRL_training/IsaacLab
+	url = https://github.com/isaac-sim/IsaacLab.git
+[submodule "src/DRL_experiment/third_party/visp"]
+	path = src/DRL_experiment/third_party/visp
+	url = https://github.com/lagadic/visp.git
+[submodule "src/DRL_experiment/src/moveit_msgs"]
+	path = src/DRL_experiment/src/moveit_msgs
+	url = https://github.com/moveit/moveit_msgs.git
+	branch = humble
+[submodule "src/DRL_experiment/src/web_video_server"]
+	path = src/DRL_experiment/src/web_video_server
+	url = https://github.com/RobotWebTools/web_video_server.git
+	branch = ros2
+[submodule "src/DRL_experiment/src/ros2_robotiq_gripper"]
+	path = src/DRL_experiment/src/ros2_robotiq_gripper
+	url = https://github.com/PickNikRobotics/ros2_robotiq_gripper.git
+	branch = humble
+[submodule "src/DRL_experiment/src/serial"]
+	path = src/DRL_experiment/src/serial
+	url = https://github.com/RoverRobotics-forks/serial-ros2.git

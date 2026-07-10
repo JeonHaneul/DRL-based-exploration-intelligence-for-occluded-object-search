@@ -1,0 +1,5 @@
+ultralytics==8.4.27
+rotutils
+onnxruntime
+tqdm
+moveit2_commander

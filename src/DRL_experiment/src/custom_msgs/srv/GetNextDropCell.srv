@@ -1,0 +1,8 @@
+# Request (Empty)
+---
+# Response
+bool success
+string row_id
+int32 col_id
+geometry_msgs/PoseStamped center_coord
+geometry_msgs/Vector3 size

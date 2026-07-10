@@ -1,0 +1,1 @@
+ros2 launch fcn_network fcn_network.launch.py model_file:=/home/irol/workspace/project_sky/src/fcn_network/resource/best_model_0408.pth grid_data_file:=/home/irol/workspace/project_sky/src/fcn_network/resource/grid_data.json debug:=false
