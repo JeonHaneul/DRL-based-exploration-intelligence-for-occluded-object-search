@@ -1,5 +1,13 @@
 # DRL-based Exploration Intelligence for Occluded Object Search
 
+## Paper
+
+This repository provides the code for the following research paper:
+
+**A study on deep reinforcement learning-based exploration intelligence for occluded object search**  
+*Engineering Applications of Artificial Intelligence* (2026)  
+[ScienceDirect](https://www.sciencedirect.com/science/article/pii/S0952197626012364) | [DOI: 10.1016/j.engappai.2026.114954](https://doi.org/10.1016/j.engappai.2026.114954)
+
 This repository contains the training and experiment code together in a single repository under `src/`.
 
 ## Repository layout
@@ -350,3 +358,4 @@ object_tracker  ──>  fcn_network  ──>  robot_control
 4. `docs/commands.md`와 각 launch 파일을 참고해 카메라, 인지, 추론, 제어 노드를 실행합니다.
 
 자세한 노드별 topic/service 관계는 [아키텍처 및 노드 구동 원리](docs/architecture.md)를 참고하세요.
+
