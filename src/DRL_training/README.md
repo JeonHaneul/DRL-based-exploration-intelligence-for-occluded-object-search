@@ -1,34 +1,223 @@
 # DRL Training
 
-## 학습 데이터 생성
+## 학습 파이프라인 개요
 
-학습용 데이터셋 생성 코드는 `src/high_level_dataset`에 있습니다. Isaac Lab 기반 시뮬레이션에서 선반 장면과 타깃 객체의 배치 후보를 생성한 뒤, 이를 결합해 최종 학습용 distribution map을 만듭니다.
+학습은 다음 순서로 진행합니다.
 
-### 생성 코드
+1. `src/high_level_dataset`에서 FCN 학습용 RGB 장면, 타깃 ground truth, 최종 distribution map을 생성합니다.
+2. `FCN_model_training`에서 데이터 이름과 폴더 구조를 통일하고 mean/std를 계산한 뒤 FCN-ResNet50을 학습·검증합니다.
+3. 생성된 FCN weight를 `src/High_level_policy_direct`의 DirectRLEnv에 연결하고 RSL-RL PPO로 DRL action selector를 학습합니다.
 
-| 파일 | 역할 |
-| --- | --- |
-| `Scene_generator.py` | 다양한 객체가 배치된 선반 장면을 생성하고 RGB, depth, segmentation 및 scene mask 데이터를 저장합니다. |
-| `Target_scene_gnerator.py` | 타깃 객체가 선반에 위치할 수 있는 영역과 자세를 순회하며 ground-truth용 target scene 데이터를 생성합니다. |
-| `Final_distribution_map_generator.py` | scene/target depth와 similarity mask를 처리하고 결합하여 최종 학습 데이터인 distribution map을 생성합니다. |
+> **현재 저장소 상태:** `src/high_level_dataset`과 `src/High_level_policy_direct`는 포함되어 있지만, 검토한 FCN 학습 원본(`rename.py`, `find_config.py`, `train_250506.py`, `test_pred.py`)은 현재 GitHub의 `FCN_model_training` 폴더에 포함되어 있지 않습니다. 아래 FCN 명령은 해당 파일을 `src/DRL_training/FCN_model_training`에 추가하고, 필요하면 `train.py`/`test.py`로 이름을 표준화한 뒤 실행하는 것을 전제로 합니다.
 
-### 생성 순서
+## 1. FCN 학습 데이터 생성
 
-1. `Scene_generator.py`로 학습용 선반 장면과 mask를 생성합니다.
-2. `Target_scene_gnerator.py`로 타깃 객체의 배치 가능 영역에 대한 ground truth를 생성합니다.
-3. `Final_distribution_map_generator.py`로 두 결과를 결합해 최종 distribution map을 생성합니다.
+데이터 생성 코드는 [`src/high_level_dataset`](./src/high_level_dataset)에 있습니다. 모든 스크립트는 Isaac Sim/Isaac Lab Python으로 실행해야 하며, Omniverse의 shelf/object USD asset 경로가 코드의 `omniverse://localhost/Library/Shelf/...` 경로와 일치해야 합니다.
 
-### 실행 예시
+### 1.1 `Scene_generator.py`: 선반 장면과 scene mask 생성
+
+[`Scene_generator.py`](./src/high_level_dataset/Scene_generator.py)는 타깃 및 주변 객체를 무작위로 배치하고 RGB, depth, semantic/instance segmentation과 column별 scene mask를 저장합니다. 코드의 `target_row_index`, `spawn_probability`, `visibility_probability`, `ENV_Cfg.shelf`, `usd_path_mapping`을 실험 구성에 맞게 먼저 확인하십시오.
 
 ```bash
-./isaaclab.sh -p source/standalone/shelf_env/Scene_generator.py --target_object can_2 --enable_camera --save --num_img 100
-./isaaclab.sh -p source/standalone/shelf_env/Target_scene_gnerator.py --target_object can_3 --enable_camera --save --row 4
-./isaaclab.sh -p source/standalone/shelf_env/Final_distribution_map_generator.py --target_object can_2 --save
+./isaaclab.sh -p source/standalone/shelf_env/Scene_generator.py \
+  --target_object can_2 \
+  --enable_camera \
+  --save \
+  --num_img 100
 ```
 
-> 실행 전 각 스크립트의 Isaac Lab 경로, Omniverse USD asset 경로, 출력 폴더를 현재 환경에 맞게 설정해야 합니다.
+| 인자 | 기본값 | 의미 |
+| --- | ---: | --- |
+| `--target_object` | `cup_1` | 생성할 타깃 객체 이름입니다. USD mapping과 클래스 목록에 존재해야 합니다. |
+| `--num_img` | `10` | 생성할 장면/프레임 수입니다. 코드에서는 정수로 변환해 사용합니다. |
+| `--save` | 꺼짐 | RGB, depth, segmentation, mask 출력을 디스크에 저장합니다. |
+| `--camera_id` | `0` | 저장·시각화할 카메라 인덱스이며 허용값은 0 또는 1입니다. |
+| `--draw` | 꺼짐 | GUI에서 point cloud marker를 표시합니다. |
+| `--num_envs` | `2` | App/scene 생성용 환경 수 인자입니다. 현재 스크립트의 실제 데이터 생성 루프에서 사용 여부를 확인하십시오. |
+| AppLauncher 인자 | - | `--headless`, camera enable 등 Isaac Lab이 추가하는 인자입니다. 버전에 따라 `--enable_camera` 대신 `--enable_cameras`일 수 있으므로 `--help`로 확인하십시오. |
+
+출력은 코드 파일 기준의 `output/camera/<target_object>/scene/` 아래에 생성됩니다.
+
+### 1.2 `Target_scene_gnerator.py`: 타깃 배치 가능 영역 생성
+
+[`Target_scene_gnerator.py`](./src/high_level_dataset/Target_scene_gnerator.py)는 타깃 객체를 선반의 가능한 위치와 회전으로 이동시키면서 target RGB/depth/semantic 데이터를 생성합니다. 파일명은 원본의 `gnerator` 철자를 그대로 사용합니다.
+
+```bash
+./isaaclab.sh -p source/standalone/shelf_env/Target_scene_gnerator.py \
+  --target_object can_3 \
+  --enable_camera \
+  --save \
+  --row 4
+```
+
+| 인자 | 기본값 | 의미 |
+| --- | ---: | --- |
+| `--target_object` | `cup_1` | ground-truth 위치를 생성할 타깃 클래스입니다. |
+| `--row` | `1` | 생성 범위를 제한하는 선반 row 설정입니다. shelf 좌표 간격 및 종료 조건과 함께 맞춰야 합니다. |
+| `--save` | 꺼짐 | target camera 데이터를 저장합니다. |
+| `--camera_id` | `0` | 사용할 카메라 인덱스(0 또는 1)입니다. |
+| `--draw` | 꺼짐 | GUI point cloud 표시를 활성화합니다. |
+| AppLauncher 인자 | - | headless/camera 관련 Isaac Lab 공통 인자입니다. |
+
+출력은 `output/camera/<target_object>/target/` 아래에 생성됩니다. `usd_path_mapping`, shelf 원점, camera pose와 `scene_update()`의 이동 간격은 실제 선반 규격에 맞춰야 합니다.
+
+### 1.3 `Final_distribution_map_generator.py`: 최종 FCN label 생성
+
+[`Final_distribution_map_generator.py`](./src/high_level_dataset/Final_distribution_map_generator.py)는 scene/target semantic segmentation과 depth를 결합해 occlusion distribution을 계산하고 similarity mask와 합성하여 최종 distribution map을 만듭니다.
+
+```bash
+./isaaclab.sh -p source/standalone/shelf_env/Final_distribution_map_generator.py \
+  --target_object can_2 \
+  --save
+```
+
+| 인자/설정 | 기본값 | 의미 |
+| --- | ---: | --- |
+| `--target_object` | `cup_1` | 처리할 타깃 클래스입니다. scene/target 폴더 이름과 일치해야 합니다. |
+| `--save` | 꺼짐 | 계산된 depth distribution map을 저장합니다. |
+| `folder_path` | 코드 내 절대 경로 | `__main__`의 경로를 실제 `output/camera` 위치로 수정해야 합니다. |
+| `occlusion_threshold` | `0.25` | target 영역 중 occluded로 판정할 최소 비율입니다. |
+| 결합 비율 | 코드 확인 필요 | 제공된 최종 스크립트는 일부 구간에서 depth/similarity를 0.2/0.8로 결합합니다. 논문 Eq. (2)의 재현 목표는 similarity 가중치 `β=0.7`입니다. |
+
+예상 입력/출력 폴더는 `semantic_segmentation`, `distance_to_camera`, `processed_depth`, `depth_dis_map`, `mask`, `distribution_map`입니다. 각 scene과 target의 파일 개수와 번호가 일치해야 합니다.
+
+## 2. FCN 모델 학습
+
+### 2.1 파일 이름 통일: `rename.py`
+
+`rename.py`는 RGB 이름(`rgb_<number>_0.png`)과 label 이름(`01_<number>.png`)을 동일한 7자리 번호(`0000001.png`)로 복사해 `train_x/<class>`, `train_y/<class>` 구조를 만듭니다.
+
+```bash
+cd src/DRL_training/FCN_model_training
+python rename.py
+```
+
+CLI 인자는 없으므로 파일 상단의 다음 값을 클래스마다 수정해 반복 실행합니다.
+
+- `rgb_folder`, `masks_folder`: 원본 RGB와 distribution map 폴더
+- `train_x_folder`, `train_y_folder`: 정리된 입력/label 저장 폴더
+- 클래스 이름(예: `bottle_4`): 두 입력과 두 출력 경로에서 동일하게 유지
+
+### 2.2 normalization 계산: `find_config.py`
+
+`find_config.py`는 전체 `train_x` 이미지의 RGB mean/std와 최소 height/width를 계산하고 `outputs/dataset_stats.txt`, `outputs/global_min_size.txt`에 저장합니다.
+
+```bash
+python find_config.py
+```
+
+CLI 인자는 없습니다. `train_x_dir`, `class_names`, `output_dir`을 데이터셋과 일치시키고, 데이터가 많으면 `calculate_mean_std(..., batch_size=1000)`의 batch size를 메모리에 맞게 조정합니다.
+
+### 2.3 FCN-ResNet50 학습: `train.py`
+
+검토한 원본 파일명은 `train_250506.py`입니다. 저장소에 추가할 때 `train.py`로 표준화하거나 아래 명령의 파일명을 원본에 맞추십시오.
+
+```bash
+python train.py
+python train.py --resume
+# 원본 이름을 유지한 경우:
+# python train_250506.py [--resume]
+```
+
+`--resume`은 `Config.MODEL_PATH`의 weight를 불러와 이어서 학습합니다. 주요 수정 지점은 다음과 같습니다.
+
+| Config | 검토 코드 값 | 의미 |
+| --- | ---: | --- |
+| `X_DATA_DIR`, `Y_DATA_DIR` | `./train_x`, `./train_y` | 입력 RGB와 distribution label root |
+| `OUTPUT_DIR` | `./outputs` | weight, log, 예측 이미지 저장 위치 |
+| `BATCH_SIZE` | `16` | 640x480 입력에서 24 GB VRAM 기준 batch |
+| `LR` | `1e-4` | Adam learning rate |
+| `EPOCHS` | `100` | 최대 epoch |
+| `CLASS_NAMES` | 16 classes | 폴더명, output channel 순서와 반드시 동일 |
+| `LEARNING_DATA_RATIO` | `0.8` | train/validation split |
+| `MODEL_PATH` | `outputs/best_model_45.pth` | best/resume weight |
+| `SAVE_IMAGES_INTERVAL` | `2` | validation image와 epoch weight 저장 간격 |
+
+모델은 pretrained FCN-ResNet50의 classifier를 클래스 수만큼 변경하고, class별 output channel에 MSE Loss를 적용합니다. optimizer는 Adam이며 normalization은 `dataset_stats.txt`를 읽습니다. 논문 Table 5 기준은 batch 16, learning rate 0.0001, 100 epochs, MSE Loss, Adam, early stopping입니다.
+
+### 2.4 FCN 테스트: `test.py`
+
+검토한 원본 파일명은 `test_pred.py`입니다.
+
+```bash
+python test.py --target can_2
+# 원본 이름을 유지한 경우:
+# python test_pred.py --target can_2
+```
+
+`--target`은 `CLASS_NAMES` 중 추론할 클래스입니다. `TEST_DIR`, `OUTPUT_DIR`, `MODEL_PATH`, `DATASET_STATS_PATH`, `BATCH_SIZE`, `CLASS_NAMES`를 학습 구성과 동일하게 맞춰야 합니다.
+
+## 3. FCN weight를 이용한 DRL 학습
+
+### 3.1 DirectRLEnv 코드 위치
+
+- 환경/config/FCN 추론: [`src/High_level_policy_direct/high_level_policy_direct_env.py`](./src/High_level_policy_direct/high_level_policy_direct_env.py)
+- RSL-RL PPO 설정: [`src/High_level_policy_direct/agents/rsl_rl_cfg.py`](./src/High_level_policy_direct/agents/rsl_rl_cfg.py)
+- Gym task 등록: [`src/High_level_policy_direct/__init__.py`](./src/High_level_policy_direct/__init__.py)
+
+`HighlevelDirectEnvCfg`에서 `scene.num_envs`, `decimation`, `episode_length_s`, action/observation space, camera, RGB `mean/std`, `MODEL_PATH`를 설정합니다. `HighlevelDirectEnv.__init__()`은 FCN-ResNet50을 만들고 `MODEL_PATH`의 weight를 로드합니다. `_get_observations()`은 RGB normalization, FCN inference, gain `g=2`, column별 1D-PDM, temporal smoothing(논문 `α=0.7`; 현재 코드 변수명 `gamma`)을 계산하는 위치입니다.
+
+> **구현 확인 필요:** 현재 GitHub의 `high_level_policy_direct_env.py`는 `_get_rewards()`가 `torch.zeros(...)`를 반환하고 action/observation도 테스트용 스텁 상태입니다. 아래 논문 보상은 설명만 추가한 것이며, 논문의 완전한 Direct 환경 구현에서 config 상수와 `_get_rewards()`로 이식하지 않으면 실제 PPO 학습에 보상이 전달되지 않습니다.
+
+### 3.2 논문 reward/penalty와 weight
+
+논문 Eqs. (12)-(24), Table 4의 값입니다. full Direct 구현에서는 weight를 `HighlevelDirectEnvCfg`의 상수로 두고, 조건 계산과 합산은 `HighlevelDirectEnv._get_rewards()`에 둡니다.
+
+| 항목 | 조건 요약 | weight |
+| --- | --- | ---: |
+| Target grasping reward | 선택 column의 target을 grasp | `+60` |
+| Sweeping right reward | Top-2 column, right 공간 존재, rightmost 제외 | `+35` |
+| Sweeping left reward | Top-2 column, left 공간 존재, leftmost 제외 | `+35` |
+| Non-target grasping reward | Top-2이며 양쪽 sweep이 어려울 때 non-target 제거 | `+5` |
+| Low-probability grasp penalty | Top-2가 아닌 column grasp | `-5` |
+| Low-probability sweep-right penalty | Top-2가 아닌 column sweep right | `-5` |
+| Low-probability sweep-left penalty | Top-2가 아닌 column sweep left | `-5` |
+| Empty-column action penalty | 선택 column에 객체 없음 | `-10` |
+| Target sweeping penalty | target을 좌/우로 sweep | `-20` |
+| Grasp-when-sweep-possible penalty | sweep 공간이 있는데 grasp 선택 | `-20` |
+| Re-sweep penalty | 직전 sweep을 반대로 되돌림 | `-15` |
+| Grasp-previously-swept penalty | 직전 sweep한 객체를 바로 grasp | `-10` |
+| Termination penalty | collision 또는 workspace/shelf 이탈 | `-15` |
+
+논문은 3x4 shelf에서 observation 15개(4-column PDM, 4 depth, 4 object ID, target ID, 이전 action 2개)와 12개 action(3 primitives x 4 columns)을 사용합니다. 4x5 transfer 시 observation 18개와 15개 action으로 확장합니다.
+
+### 3.3 RSL-RL PPO 설정과 실행
+
+현재 [`rsl_rl_cfg.py`](./src/High_level_policy_direct/agents/rsl_rl_cfg.py)의 주요 값은 다음과 같습니다.
+
+| 설정 | 값 | 조정 효과 |
+| --- | ---: | --- |
+| `num_steps_per_env` | 24 | rollout horizon |
+| `max_iterations` | 8000 | 최대 PPO update 수 |
+| `save_interval` | 50 | checkpoint 주기 |
+| hidden dims | `[256, 128, 64]` | actor/critic MLP 크기 |
+| activation | `elu` | MLP 활성함수 |
+| `value_loss_coef` | 1.0 | critic loss 비중 |
+| `clip_param` | 0.2 | PPO clipping 범위 |
+| `entropy_coef` | 0.006 | 탐색을 위한 entropy 보너스 |
+| learning epochs / mini-batches | 5 / 4 | rollout당 optimization 반복 |
+| `learning_rate` | `1e-3` | PPO optimizer learning rate |
+| `gamma` | 0.98 | reward discount factor |
+| `lam` | 0.95 | GAE lambda |
+| `desired_kl` | 0.01 | adaptive schedule의 KL 목표 |
+| `max_grad_norm` | 1.0 | gradient clipping |
+
+등록 task ID는 `Isaac-High-Level-Policy-Direct-Test-v0`입니다. Isaac Lab의 RSL-RL runner 경로에서 다음 형태로 실행합니다.
+
+```bash
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
+  --task Isaac-High-Level-Policy-Direct-Test-v0 \
+  --num_envs 64 \
+  --headless
+```
+
+24 GB VRAM에서 논문 통합 환경 재현값은 64 vectorized environments입니다. 현재 config의 `num_envs=4096`는 640x480 tiled RGB + FCN을 함께 사용할 때 메모리 초과 가능성이 매우 높으므로 CLI 또는 config에서 줄여 시작하십시오.
+
+> Gym 등록의 `rsl_rl_cfg_entry_point`는 현재 `rsl_rl_ppo_cfg` 모듈을 가리키지만 실제 파일명은 `rsl_rl_cfg.py`입니다. 학습 전 entry point를 실제 모듈명과 일치시키거나 파일명을 맞춰야 합니다.
 
 ---
+
+## Legacy branch and Direct/Manager notes
 
 - In IROL_SKY branch
     - Add stage
