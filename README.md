@@ -210,8 +210,8 @@ CLI 인자는 없습니다. `train_x_dir`, `class_names`, `output_dir`을 데이
 현재 저장소의 실제 학습 파일명은 `train_250506.py`입니다.
 
 ```bash
-python train.py
-python train.py --resume
+python train_250506.py
+python train_250506.py --resume
 # 원본 이름을 유지한 경우:
 # python train_250506.py [--resume]
 ```
@@ -237,7 +237,7 @@ python train.py --resume
 현재 저장소의 실제 테스트 파일명은 `test_pred.py`입니다.
 
 ```bash
-python test.py --target can_2
+python test_pred.py --target can_2
 # 원본 이름을 유지한 경우:
 # python test_pred.py --target can_2
 ```
