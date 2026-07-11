@@ -8,7 +8,7 @@
 2. `FCN_model_training`에서 데이터 이름과 폴더 구조를 통일하고 mean/std를 계산한 뒤 FCN-ResNet50을 학습·검증합니다.
 3. 생성된 FCN weight를 `src/High_level_policy_direct`의 DirectRLEnv에 연결하고 RSL-RL PPO로 DRL action selector를 학습합니다.
 
-> **현재 저장소 상태:** `src/high_level_dataset`과 `src/High_level_policy_direct`는 포함되어 있지만, 검토한 FCN 학습 원본(`rename.py`, `find_config.py`, `train_250506.py`, `test_pred.py`)은 현재 GitHub의 `FCN_model_training` 폴더에 포함되어 있지 않습니다. 아래 FCN 명령은 해당 파일을 `src/DRL_training/FCN_model_training`에 추가하고, 필요하면 `train.py`/`test.py`로 이름을 표준화한 뒤 실행하는 것을 전제로 합니다.
+> **현재 저장소 상태:** FCN 학습 코드는 `src/DRL_training/src/FCN_model_training`에 포함되어 있으며 실제 파일명은 `rename.py`, `find_config.py`, `train_250506.py`, `test_pred.py`입니다. 아래 명령은 이 실제 경로와 파일명을 기준으로 합니다.
 
 ## 1. FCN 학습 데이터 생성
 
@@ -88,7 +88,7 @@
 `rename.py`는 RGB 이름(`rgb_<number>_0.png`)과 label 이름(`01_<number>.png`)을 동일한 7자리 번호(`0000001.png`)로 복사해 `train_x/<class>`, `train_y/<class>` 구조를 만듭니다.
 
 ```bash
-cd src/DRL_training/FCN_model_training
+cd src/DRL_training/src/FCN_model_training
 python rename.py
 ```
 
@@ -110,7 +110,7 @@ CLI 인자는 없습니다. `train_x_dir`, `class_names`, `output_dir`을 데이
 
 ### 2.3 FCN-ResNet50 학습: `train.py`
 
-검토한 원본 파일명은 `train_250506.py`입니다. 저장소에 추가할 때 `train.py`로 표준화하거나 아래 명령의 파일명을 원본에 맞추십시오.
+현재 저장소의 실제 학습 파일명은 `train_250506.py`입니다.
 
 ```bash
 python train.py
@@ -137,7 +137,7 @@ python train.py --resume
 
 ### 2.4 FCN 테스트: `test.py`
 
-검토한 원본 파일명은 `test_pred.py`입니다.
+현재 저장소의 실제 테스트 파일명은 `test_pred.py`입니다.
 
 ```bash
 python test.py --target can_2
