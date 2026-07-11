@@ -174,7 +174,7 @@ The following section mirrors `src/DRL_training/README.md`.
 | `--save` | 꺼짐 | 계산된 depth distribution map을 저장합니다. |
 | `folder_path` | 코드 내 절대 경로 | `__main__`의 경로를 실제 `output/camera` 위치로 수정해야 합니다. |
 | `occlusion_threshold` | `0.25` | target 영역 중 occluded로 판정할 최소 비율입니다. |
-| 결합 비율 | ---: | 제공된 최종 스크립트는 일부 구간에서 depth/similarity를 0.3/0.7로 결합합니다. 논문 Eq. (2)의 재현 목표는 similarity 가중치 `β=0.7`입니다. |
+| 결합 비율 |  | 제공된 최종 스크립트는 일부 구간에서 depth/similarity를 0.3/0.7로 결합합니다. 논문 Eq. (2)의 재현 목표는 similarity 가중치 `β=0.7`입니다. |
 
 예상 입력/출력 폴더는 `semantic_segmentation`, `distance_to_camera`, `processed_depth`, `depth_dis_map`, `mask`, `distribution_map`입니다. 각 scene과 target의 파일 개수와 번호가 일치해야 합니다.
 
