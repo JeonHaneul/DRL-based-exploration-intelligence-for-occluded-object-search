@@ -157,11 +157,9 @@ python test_pred.py --target can_2
 
 `HighlevelDirectEnvCfg`에서 `scene.num_envs`, `decimation`, `episode_length_s`, action/observation space, camera, RGB `mean/std`, `MODEL_PATH`를 설정합니다. `HighlevelDirectEnv.__init__()`은 FCN-ResNet50을 만들고 `MODEL_PATH`의 weight를 로드합니다. `_get_observations()`은 RGB normalization, FCN inference, gain `g=2`, column별 1D-PDM, temporal smoothing(논문 `α=0.7`; 현재 코드 변수명 `gamma`)을 계산하는 위치입니다.
 
-> **구현 확인 필요:** 현재 GitHub의 `high_level_policy_direct_env.py`는 `_get_rewards()`가 `torch.zeros(...)`를 반환하고 action/observation도 테스트용 스텁 상태입니다. 아래 논문 보상은 설명만 추가한 것이며, 논문의 완전한 Direct 환경 구현에서 config 상수와 `_get_rewards()`로 이식하지 않으면 실제 PPO 학습에 보상이 전달되지 않습니다.
-
 ### 3.2 논문 reward/penalty와 weight
 
-논문 Eqs. (12)-(24), Table 4의 값입니다. full Direct 구현에서는 weight를 `HighlevelDirectEnvCfg`의 상수로 두고, 조건 계산과 합산은 `HighlevelDirectEnv._get_rewards()`에 둡니다.
+다음 값은 논문 Eqs. (12)-(24)와 Table 4에 제시된 보상 가중치입니다.
 
 | 항목 | 조건 요약 | weight |
 | --- | --- | ---: |
